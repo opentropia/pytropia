@@ -1,0 +1,6 @@
+pyyaml
+pytesseract
+pyautogui
+watchdog
+numpy
+opencv-python
