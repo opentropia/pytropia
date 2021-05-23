@@ -1,20 +1,16 @@
+import difflib
+import os
+import subprocess
+import sys
+
 import cv2
+import imutils
 import numpy as np
 import pytesseract
-import imutils
-import difflib
-import sys
-import sys
-import os
+
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
-
-# pip install opencv-python
-
-# TODO fix
-# If you don't have tesseract executable in your PATH, include the following:
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 COLOR_RED = (0, 0, 255)
 
@@ -212,6 +208,13 @@ def ocr_skill_points(img, i, numbers, scale):
 
 # TODO: argument parsing
 def from_image(image):
+    try:
+        subprocess.call(['tesseract', '-v'])
+    except OSError:
+        # If you don't have tesseract executable in your PATH, include the following:
+        default_dir = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+        pytesseract.pytesseract.tesseract_cmd = default_dir
+
     data = {}
     data['skills'] = {}
     debug = False
