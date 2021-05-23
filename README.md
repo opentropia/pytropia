@@ -127,3 +127,29 @@ sum: 12603.2863
 sum-int: 12601
 total-skills: 119113
 ```
+
+Semi auto mode:  
+`./skill-scanner.py -w /c/ProgramData/entropia\ universe/public_users_data/screenshots/ --semi-auto 19 --remove | tee skills.yaml`
+
+Press print screen 19 times. Result:
+
+skills.yaml
+```yaml
+num-skills: 125
+skills:
+  Agility: 74.6278
+  Aim: 4009.5580
+  Alertness: 2153.8525
+  Analysis: 123.0387
+  Anatomy: 6496.9765
+  ...
+  Whip: 1.0000
+  Wood Carving: 1.0000
+  Wood Processing: 1.0000
+  Wounding: 3963.4262
+  Zoology: 237.5503
+sum: 122249.0820
+sum-int: 122205
+total-skills: 122205
+```
+

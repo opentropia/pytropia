@@ -9,12 +9,20 @@ import signal
 import sys
 import time
 
+import pyautogui
 import yaml
 from PIL.Image import EXTENT
+from screeninfo import get_monitors
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 import pytropia
+
+# This somehow automagically fixes so that multi monitor support works as
+# expected when monitors get negative coordinates.
+for m in get_monitors():
+    pass
+    #print(str(m))
 
 REMOVE_SKILLS = ["Promoter Rating", "Reputation"]
 
@@ -69,10 +77,13 @@ def main():
                         help='Scan all files in directory')
     parser.add_argument('--watch', '-w', default=None,
                         help='Scan newly created files in folder')
+    parser.add_argument('--semi-auto', '-a', default=None, type=int,
+                        help='Automatically press next page after screenshot. '
+                             'The argument is the number of pages to scan. Use together with watch.')
+    parser.add_argument('--auto-remove', '-r', action='store_true',
+                        help='Automatically remove parsed screenshot. Use together with watch.')
 
     args = parser.parse_args()
-
-    expected_num_skills = 125
 
     all_skills = {}
     all_skills['skills'] = {}
@@ -91,27 +102,69 @@ def main():
         observer = Observer()
         observer.schedule(event_handler, args.watch, recursive=False)
         observer.start()
-        while not DONE:
-            ## TODO stop when total skills == all skills
-            ## TODO stop when expected num skills == num skills
+
+        if args.semi_auto:
+            pages_left = args.semi_auto
+            eprint("Take screen capture to get next page")
             new_file = event_handler.get_file()
-            if new_file:
-                eprint(f"got {new_file}")
-                eprint(f"image queue: {event_handler.queue_len()}")
-                time.sleep(0.4)  # Give the file some time to rest...
-                skill_data = pytropia.ocr_skills.from_image(new_file)
+            files_to_parse = []
+
+
+            # TODO: use imagegrab to work with multiple screens
+            next_page = pyautogui.locateOnScreen('pytropia/marks/next-page.png')
+            eprint(f"Found next page button at {next_page}")
+            if not next_page:
+                raise Exception("Unable to find next page button in semi auto mode")
+            next_page = pyautogui.center(next_page)
+
+            while pages_left > 0 and not DONE:
+                new_file = event_handler.get_file()
+                if new_file:
+                    eprint(f"got {new_file}")
+                    files_to_parse.append(new_file)
+                    pyautogui.mouseDown(next_page)
+                    time.sleep(0.1)
+                    pyautogui.mouseUp(next_page)
+                    pages_left -= 1
+                    eprint(f"Pages left {pages_left}")
+                time.sleep(0.1)
+
+            eprint(f"Done with screen shots")
+            time.sleep(0.4)  # Give the file some time to rest...
+
+            # Parse all files
+            for file in files_to_parse:
+                skill_data = pytropia.ocr_skills.from_image(file)
                 all_skills['total-skills'] = int(skill_data['total-skills'])
                 all_skills['skills'] = {
                     **all_skills['skills'], **skill_data['skills']}
-                parsed_skill_points = 0
-                for value in all_skills['skills'].values():
-                    parsed_skill_points += math.trunc(value)
-                eprint(f"Parsed {len(skill_data['skills'])} skills")
-                eprint(
-                    f"Total skills {parsed_skill_points}/{all_skills['total-skills']}")
-                if parsed_skill_points >= all_skills['total-skills']:
-                    break
-            time.sleep(0.1)
+                eprint(f"Parsed {len(skill_data['skills'])} skills from {file}")
+                if args.auto_remove:
+                    eprint(f"Removing {file}")
+                    os.remove(file)
+        else:
+            while not DONE:
+                new_file = event_handler.get_file()
+                if new_file:
+                    eprint(f"got {new_file}")
+                    eprint(f"image queue: {event_handler.queue_len()}")
+                    time.sleep(0.4)  # Give the file some time to rest...
+                    skill_data = pytropia.ocr_skills.from_image(new_file)
+                    all_skills['total-skills'] = int(skill_data['total-skills'])
+                    all_skills['skills'] = {
+                        **all_skills['skills'], **skill_data['skills']}
+                    parsed_skill_points = 0
+                    for value in all_skills['skills'].values():
+                        parsed_skill_points += math.trunc(value)
+                    eprint(f"Parsed {len(skill_data['skills'])} skills")
+                    eprint(
+                        f"Total skills {parsed_skill_points}/{all_skills['total-skills']}")
+                    if args.auto_remove:
+                        eprint(f"Removing {new_file}")
+                        os.remove(new_file)
+                    if parsed_skill_points >= all_skills['total-skills']:
+                        break
+                time.sleep(0.1)
     elif args.directory:
         for filename in os.listdir(args.directory):
             try:
@@ -144,10 +197,6 @@ def main():
     if int(all_skills['sum-int']) != all_skills['total-skills']:
         raise Exception(
             f"Total skills '{all_skills['total-skills']}' different from parsed: '{all_skills['sum-int']}'")
-
-    if expected_num_skills != len(all_skills['skills']):
-        raise Exception(
-            f"Expected '{expected_num_skills}' skills, got '{len(all_skills['skills'])}'")
 
     # eprint(len(all_skills['skills']))
 
