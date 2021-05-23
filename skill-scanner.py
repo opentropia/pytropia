@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
 from __future__ import print_function
-from PIL.Image import EXTENT
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 
-import pytropia
-import yaml
-import math
 import argparse
+import math
 import os
-import sys
+import signal
 import sys
 import time
-import signal
 
+import yaml
+from PIL.Image import EXTENT
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
+
+import pytropia
 
 REMOVE_SKILLS = ["Promoter Rating", "Reputation"]
 
@@ -156,4 +156,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
