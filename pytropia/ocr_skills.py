@@ -72,7 +72,7 @@ def margin(img, margin_x, margin_y):
     return crop(img, (margin_x, margin_y), (w - margin_x, h - margin_y))
 
 def ocr_page_number(img):
-    # psm 8 = Treat the image as a single word.
+    # psm 7 = Treat the image as a single text line.
 
     # Parameters for image pre-processing
     scale_percent = 400
@@ -101,9 +101,14 @@ def ocr_page_number(img):
     return result
 
 def ocr_total_skills(img):
-    # psm 8 = Treat the image as a single word.
+    # psm 7 = Treat the image as a single text line.
+    # Convert to gray scale
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # Threshold
+    _, img = cv2.threshold(img, 140, 255, cv2.THRESH_BINARY)
+
     chars = '0123456789'
-    result = pytesseract.image_to_string(img, lang='eng', config=f'-c tessedit_char_whitelist="{chars}" --psm 8')
+    result = pytesseract.image_to_string(img, lang='eng', config=f'-c tessedit_char_whitelist="{chars}" --psm 7')
     return result.partition('\n')[0]
 
 def ocr_skill_name(img):
