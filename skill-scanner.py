@@ -68,6 +68,15 @@ class ImagesEventHandler(FileSystemEventHandler):
         return self.files.pop()
 
 
+def output_skills(all_skills, format):
+    if format == 'yaml':
+        print(yaml.dump(all_skills))
+    elif format == 'csv':
+        for skill in all_skills['skills'].items():
+            print(f"{skill[0]}, {skill[1]}, skill")
+    else:
+        raise Exception("unknown format")
+
 def main():
     parser = argparse.ArgumentParser(
         description='Scan skill points. TODO: more')
@@ -82,8 +91,16 @@ def main():
                              'The argument is the number of pages to scan. Use together with watch.')
     parser.add_argument('--auto-remove', '-r', action='store_true',
                         help='Automatically remove parsed screenshot. Use together with watch.')
+    parser.add_argument('--format', '-fmt', default='yaml', choices=['yaml', 'csv'],
+                        help='Output format')
 
     args = parser.parse_args()
+
+    if args.file.name.endswith(".yaml"):
+        with open(args.file.name) as file:
+            all_skills = yaml.load(file, Loader=yaml.SafeLoader)
+            output_skills(all_skills, args.format)
+        return 0
 
     all_skills = {}
     all_skills['skills'] = {}
@@ -192,7 +209,7 @@ def main():
     # eprint(f"Total skills: {all_skills['sum']}")
     # eprint(f"Total whole: {all_skills['sum-int']}")
 
-    print(yaml.dump(all_skills))
+    output_skills(all_skills, args.format)
 
     if int(all_skills['sum-int']) != all_skills['total-skills']:
         raise Exception(
