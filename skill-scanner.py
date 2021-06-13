@@ -96,7 +96,7 @@ def main():
 
     args = parser.parse_args()
 
-    if args.file.name.endswith(".yaml"):
+    if args.file and args.file.name.endswith(".yaml"):
         with open(args.file.name) as file:
             all_skills = yaml.load(file, Loader=yaml.SafeLoader)
             output_skills(all_skills, args.format)
