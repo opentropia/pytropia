@@ -47,6 +47,9 @@ yaml.add_representer(float, float_representer)
 ### Picked up Pappylon (77)
 ### The transaction was completed successfully
 ### Item(s) repaired successfully
+### The Warchief's Sanctuary has been challenged!
+### Typhon's Reach has been challenged!
+### Robot forces have launched an attack on Fort Lahar at [Calypso, 67005, 74847, 202, Waypoint]
 
 ## You
 # Example: "You healed yourself 42.0 points"
