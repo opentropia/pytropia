@@ -125,6 +125,11 @@ team:
 tiering: {}
 ```
 
+### analyze-loot
+
+Work-in-progress script to try to analyze and get statistics from the loot logs.
+Could for example be used to evaluate different weapons or different mobs.
+
 ### skill-scanner
 
 TODO: instructions
