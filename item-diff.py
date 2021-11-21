@@ -106,8 +106,8 @@ def main():
 
     # Diff ped value for each item type
     all_keys = set(item_values_start.keys() | item_values_end.keys())
-    cost = 0
-    ret = 0
+    cost = 0.000000001
+    ret = 0.000000001
     item_diff = {}
     for key in all_keys:
         diff_ped = item_values_end.get(
