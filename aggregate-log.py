@@ -80,6 +80,8 @@ re_sys_you_reduced_pierce = re.compile(
 # Example "Reduced 5.2 points of critical damage"
 re_sys_you_reduced_crit = re.compile(
     r'Reduced (\d+\.\d+) points of critical damage')
+## Loot
+re_loot = re.compile(r'You received (.*) x \((\d+)\) Value: (\d+\.\d+) PED')
 
 ## Enhancers)
 # Example: "Your enhancer Weapon Damage Enhancer 1 on your ArMatrix LP-50 (L) broke. You have 18 enhancers remaining on the item. You received 0.8000 PED Shrapnel."
@@ -225,6 +227,28 @@ def handle_system(data, message):
         data['enhancers'][enhancer] = data['enhancers'].get(enhancer, 0) + 1
         return
 
+    # Loot
+    result = re.match(re_loot, message)
+    if result:
+        item = result.group(1)
+        count = int(result.group(2))
+        value = float(result.group(3))
+
+        # Special handling to calculate value of Shrapnel since
+        # to avoid rounding errors.
+        if item == "Shrapnel":
+            value = count / 10000
+
+        if item not in data['loot']['items']:
+            data['loot']['items'][item] = {}
+            data['loot']['items'][item]['count'] = 0
+            data['loot']['items'][item]['value'] = 0.0
+
+        data['loot']['items'][item]['value'] += value
+        data['loot']['items'][item]['count'] += count
+
+        data['loot']['total'] += value
+
     return
 
 
@@ -270,6 +294,9 @@ def main():
     data['enhancers'] = {}
     data['tiering'] = {}
     data['globals'] = {}
+    data['loot'] = {}
+    data['loot']['items'] = {}
+    data['loot']['total'] = 0.0
 
     data['combat']['you'] = {}
     data['combat']['you']['heals'] = 0

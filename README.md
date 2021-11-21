@@ -87,6 +87,24 @@ skills:
   ...
   Weapons Handling: 3.0724
   Wounding: 8.3571
+loot:
+  items:
+    Animal Muscle Oil:
+      count: 369
+      value: 11.0700
+    Calypso Bone Sample:
+      count: 11
+      value: 0.0000
+    Omegaton B101 (L):
+      count: 1
+      value: 0.0800
+    Shrapnel:
+      count: 584873
+      value: 58.4873
+    Sollomate Rubio (L):
+      count: 1
+      value: 0.0567
+  total: 69.6940
 team:
   avatars:
     Alli Golden:
