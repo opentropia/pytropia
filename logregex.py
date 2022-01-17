@@ -14,6 +14,7 @@ import re
 # Walen Wale Thor constructed an item (Explosive Projectiles) worth 173 PED!
 # Mal Marshmellow Darkwater has found a rare item (Aeglic Ring, Adjusted) with a value of 10 PED! A record has been added to the Hall of Fame!
 # Chaz THE JAZZ DeHetre killed a creature (Hogglo Guardian) with a value of 847 PED! A record has been added to the Hall of Fame!
+# Felix Filly Kiste is the first colonist to discover Lotus Armor Arm (F). Item discovered in Lotus Gold Team! A record has been added to the Hall of Fame!
 # examined Treasure Chest in
 # examined Mysterious Crate in
 # has found a rare item
