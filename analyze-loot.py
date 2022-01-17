@@ -5,6 +5,7 @@ from os import times
 import re
 import time
 import datetime
+import csv
 
 import numpy as np
 from matplotlib import pyplot as plt 
@@ -36,7 +37,12 @@ def main():
 
     first_timestamp = -1
 
-    with open(args.file.name, "r", encoding="utf8") as log:
+    with open(args.file.name, "r", encoding="utf8") as log, open('loot.csv', 'w', newline='') as csvfile:
+
+        fieldnames = ['timestamp', 'cost', 'return', 'multi']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+
         regex = re_base
 
         current_cost = 0.00000001
@@ -86,6 +92,8 @@ def main():
                         # TODO: add option to use absolute time
                         timestamps.append(timestamp - first_timestamp)
 
+                    writer.writerow({'timestamp': timestamp, 'cost': current_cost,'return': current_loot, 'multi': current_loot / current_cost})
+                    
                     #print(f"Loot: {ret*100:.2f}% - {current_cost:.4f} - {current_loot:.4f}")
                     current_loot = 0.0
                     current_cost = 0.0
@@ -108,7 +116,9 @@ def main():
                 if item == "Shrapnel":
                     value = count / 10000
 
-                current_loot += value
+                # Don't count universal ammo
+                if item != "Universal Ammo":
+                    current_loot += value
 
     # Analyze loot in four groups
     all_loot = 0.0
@@ -144,10 +154,15 @@ def main():
 
     print(f"Num kills: {len(loots)}")
     print(f"Total loot {(all_loot/all_cost) * 100:.2f}% ({all_loot:.2f}/{all_cost:.2f})")
-    print(f"G1 (0.0 - {g1}) returns: {(g1_loot/g1_cost) * 100:.2f}% - ({(g1_loot/all_loot) * 100:.2f}% of total returns)")
-    print(f"G2 ({g1} - {g2}) returns: {(g2_loot/g2_cost) * 100:.2f}% - ({(g2_loot/all_loot) * 100:.2f}% of total returns)")
-    print(f"G3 ({g2} - {g3})  returns: {(g3_loot/g3_cost) * 100:.2f}% - ({(g3_loot/all_loot) * 100:.2f}% of total returns)")
-    print(f"G4 ({g3} - inf)  returns: {(g4_loot/g4_cost) * 100:.2f}% - ({(g4_loot/all_loot) * 100:.2f}% of total returns)")
+    print(f"G1 (0.0 - {g1}) returns: {(g1_loot/g1_cost) * 100:.2f}% - ({(g1_loot/all_cost) * 100:.2f}% of total cost)")
+    print(f"G2 ({g1} - {g2}) returns: {(g2_loot/g2_cost) * 100:.2f}% - ({(g2_loot/all_cost) * 100:.2f}% of total cost)")
+    print(f"G3 ({g2} - {g3})  returns: {(g3_loot/g3_cost) * 100:.2f}% - ({(g3_loot/all_cost) * 100:.2f}% of total cost)")
+    print(f"G4 ({g3} - inf)  returns: {(g4_loot/g4_cost) * 100:.2f}% - ({(g4_loot/all_cost) * 100:.2f}% of total cost)")
+    print("")
+    print(f"G1 (0.0 - {g1}) returns: {(g1_loot/all_cost) * 100:.2f}%")
+    print(f"G2 (0.0 - {g2}) returns: {((g1_loot+g2_loot)/all_cost) * 100:.2f}%")
+    print(f"G3 (0.0 - {g3}) returns: {((g1_loot+g2_loot+g3_loot)/all_cost) * 100:.2f}%")
+    print(f"G4 (0.0 - inf)  returns: {((g1_loot+g2_loot+g3_loot+g4_loot)/all_cost) * 100:.2f}%")
 
     # Plot some things
     fig, axs = plt.subplots(2, 2)
@@ -156,6 +171,7 @@ def main():
     axs[0, 0].set_title("Returns over time")
     axs[0, 0].set_xlabel("Time (s)")
     axs[0, 0].set_ylabel("Loot (multiplier)")
+    axs[0, 0].set_ylim([0, 80])
     axs[0, 0].plot(timestamps, returns)
     axs[0, 0].grid()
 
