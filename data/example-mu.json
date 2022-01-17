@@ -1,0 +1,10 @@
+{
+    "Mining Strongbox 1":         {"ped": 18},
+    "Empty Skill Implant (L)":    {"percent": 1200},
+    "Shrapnel":                   {"percent": 101},
+    "Lumis Leach":                {"percent": 340},
+    "Cave Sap":                   {"percent": 220},
+    "Alicenies Liquid:":          {"percent": 105},
+    "Alicenies Gel":              {"other-percent": "Alicenies Liquid"},
+    "Putty":                      {"other-percent": "Putty"}
+}
