@@ -73,6 +73,14 @@ def main():
 
             # damage taken is currently ignored, assumed to be neglactable
 
+            # Don't treat enhancer breakage as loot
+            result1 = re.match(re_sys_enhancer, message)
+            if result1:
+                value = float(result1.group(4))
+                current_loot -= value
+                last_message = 'hit'
+                print(f"Enhancer broke: {result1.group(1)},  value: {value}")
+
             # Target evade/dodge/miss
             result1 = re.match(re_sys_target_evade, message)
             result2 = re.match(re_sys_target_dodge, message)
@@ -153,7 +161,7 @@ def main():
         all_cost += costs[i]
         all_loot += loots[i]
 
-    print(f"Num kills: {len(loots)}")
+    print(f"\nNum kills: {len(loots)}")
     print(f"Total loot {(all_loot/all_cost) * 100:.2f}% ({all_loot:.2f}/{all_cost:.2f})")
     print(f"G1 (0.0 - {g1}) returns: {(g1_loot/g1_cost) * 100:.2f}% - ({(g1_loot/all_cost) * 100:.2f}% of total cost)")
     print(f"G2 ({g1} - {g2}) returns: {(g2_loot/g2_cost) * 100:.2f}% - ({(g2_loot/all_cost) * 100:.2f}% of total cost)")
