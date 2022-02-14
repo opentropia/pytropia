@@ -78,9 +78,10 @@ def main():
             result2 = re.match(re_sys_target_dodge, message)
             result3 = re.match(re_sys_target_jammed, message)
             result_hit = re.match(re_sys_you_inflict, message)
+            result_crit_hit = re.match(re_sys_you_crit, message)
             result_miss = re.match(re_sys_you_missed, message)
 
-            if result1 or result2 or result3 or result_hit or result_miss:
+            if result1 or result2 or result3 or result_hit or result_crit_hit or result_miss:
                 if last_message == 'loot':
                     ret = (current_loot/current_cost)
 
