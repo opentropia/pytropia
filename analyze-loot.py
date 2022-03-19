@@ -116,23 +116,11 @@ def parse_log(file_name, data):
                 if item != "Universal Ammo":
                     current_loot += value
 
-def main():
-    parser = argparse.ArgumentParser(
-        description='Analyze individual loot events from log and aggregate data')
-    parser.add_argument('--files', '-f', default=None, type=argparse.FileType('r'),
-                        help='chat.log', required=True, nargs='+')
-    parser.add_argument('--cost', '-c', default=None, type=float,
-                        help='Cost per shot (PEC)', required=True)
-    parser.add_argument('--remove-shrap', '-s', action='store_true',
-                        help='Remove bonus shrapnel from returns')
-    parser.add_argument('--write-csv', '-csv', action='store_true',
-                        help='Write parsed output as a csv (will be written to loot.csv)')
 
-    args = parser.parse_args()
-
+def get_data(files, cost_per_shot, remove_shrap):
     data = {}
 
-    data['ped_per_shot'] = args.cost / 100
+    data['ped_per_shot'] = cost_per_shot / 100
     data['bonus_shraps'] = []
     data['bonus_shraps_multis'] = []
     data['loots'] = []
@@ -141,11 +129,11 @@ def main():
     data['timestamps'] = []
     data['shots'] = 0
 
-    for f in args.files:
+    for f in files:
         parse_log(f.name, data)
 
     for i in range(len(data['loots'])):
-        if args.remove_shrap:
+        if remove_shrap:
             data['loots'][i] -= data['bonus_shraps'][i]
 
         multi = data['loots'][i] / data['costs'][i]
@@ -153,49 +141,16 @@ def main():
 
         data['bonus_shraps_multis'].append(data['bonus_shraps'][i] / data['costs'][i])
 
-    if args.write_csv:
-        with open('loot.csv', 'w', newline='') as csvfile:
-            fieldnames = ['timestamp', 'cost', 'return', 'multi']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            for i in range(len(data['loots'])):
-                writer.writerow({'timestamp': data['timestamps'][i], 'cost': data['costs']
-                                 [i], 'return': data['loots'][i], 'multi': data['returns'][i]})
-
     # Subtract min timestamp for relative time from first loot
     min_timesamp = min(data['timestamps'])
     data['timestamps'] = [x - min_timesamp for x in data['timestamps']]
 
+    return data
 
-    # Analyze loot in four groups
-    all_loot = 0.0
-    all_cost = 0.0
-    g1 = 0.6
-    g1_cost = 0.00000001
-    g1_loot = 0.00000001
-    g2 = 2
-    g2_cost = 0.00000001
-    g2_loot = 0.00000001
-    g3 = 5
-    g3_cost = 0.00000001
-    g3_loot = 0.00000001
-    g4 = 100000
-    g4_cost = 0.00000001
-    g4_loot = 0.00000001
+def print_summary(data):
+    all_cost = 0
+    all_loot = 0
     for i in range(0, len(data['loots'])):
-        multi = data['loots'][i] / data['costs'][i]
-        if multi < g1:
-            g1_cost += data['costs'][i]
-            g1_loot += data['loots'][i]
-        elif multi < g2:
-            g2_cost += data['costs'][i]
-            g2_loot += data['loots'][i]
-        elif multi < g3:
-            g3_cost += data['costs'][i]
-            g3_loot += data['loots'][i]
-        else:
-            g4_cost += data['costs'][i]
-            g4_loot += data['loots'][i]
         all_cost += data['costs'][i]
         all_loot += data['loots'][i]
 
@@ -203,28 +158,20 @@ def main():
     print(f"Shots: {data['shots']}")
     print(f"Total loot {(all_loot/all_cost) * 100:.2f}% ({all_loot:.2f}/{all_cost:.2f})")
     print(f"Total bonus shrap {np.sum(data['bonus_shraps']):.2f} ({np.sum(data['bonus_shraps'])/all_cost * 100:.2f}%)")
-    print(f"G1 (0.0 - {g1}) returns: {(g1_loot/g1_cost) * 100:.2f}% - ({(g1_loot/all_cost) * 100:.2f}% of total cost)")
-    print(f"G2 ({g1} - {g2}) returns: {(g2_loot/g2_cost) * 100:.2f}% - ({(g2_loot/all_cost) * 100:.2f}% of total cost)")
-    print(f"G3 ({g2} - {g3})  returns: {(g3_loot/g3_cost) * 100:.2f}% - ({(g3_loot/all_cost) * 100:.2f}% of total cost)")
-    print(f"G4 ({g3} - inf)  returns: {(g4_loot/g4_cost) * 100:.2f}% - ({(g4_loot/all_cost) * 100:.2f}% of total cost)")
-    print("")
-    print(f"G1 (0.0 - {g1}) returns: {(g1_loot/all_cost) * 100:.2f}%")
-    print(f"G2 (0.0 - {g2}) returns: {((g1_loot+g2_loot)/all_cost) * 100:.2f}%")
-    print(f"G3 (0.0 - {g3}) returns: {((g1_loot+g2_loot+g3_loot)/all_cost) * 100:.2f}%")
-    print(f"G4 (0.0 - inf)  returns: {((g1_loot+g2_loot+g3_loot+g4_loot)/all_cost) * 100:.2f}%")
 
     # Analyze bottom
     remove_bottom_n = 2
     bottom_procent = 2
     num_samples = int(math.ceil(len(data['returns']) * (bottom_procent / 100)))
     sorted_returns = np.sort(data['returns'])
-    print(f"\nBottom {bottom_procent}% multis:")
-    for i in range(remove_bottom_n, num_samples):
-        print(sorted_returns[i])
+    #print(f"\nBottom {bottom_procent}% multis:")
+    #for i in range(remove_bottom_n, num_samples):
+    #    print(sorted_returns[i])
 
     print(f"Average ({num_samples}): {np.sum(sorted_returns[remove_bottom_n:num_samples+remove_bottom_n] / num_samples)}")
     print(f"Average (5): {np.sum(sorted_returns[remove_bottom_n:5+remove_bottom_n] / 5)}")
 
+def plot_data(data, data2):
     # Plot some things
     fig, axs = plt.subplots(2, 2)
     fig.suptitle(f"TODO")
@@ -234,13 +181,21 @@ def main():
     axs[0, 0].set_ylabel("Loot (multiplier)")
     axs[0, 0].set_ylim([0, 80])
     axs[0, 0].plot(data['timestamps'], data['returns'])
+    if data2:
+        axs[0, 0].plot(data2['timestamps'], data2['returns'])
+
     axs[0, 0].grid()
 
     #t = np.linspace(0, num_mobs, num_mobs)
     axs[1, 0].set_title("Returns sorted")
     axs[1, 0].set_xlabel("Kills")
     axs[1, 0].set_ylabel("Loot (multiplier)")
-    axs[1, 0].plot(np.sort(data['returns']))
+    axs[1, 0].plot(np.linspace(0, 1, num=len(data['returns'])), np.sort(data['returns']))
+    if data2:
+        axs[1, 0].plot(np.linspace(0, 1, num=len(data2['returns'])), np.sort(data2['returns']))
+        axs[1, 0].set_xlabel(f"Kills normilzed (total {len(data['loots'])}, {len(data2['loots'])})")
+    else:
+        axs[1, 0].set_xlabel(f"Kills normilzed (total {len(data['loots'])})")
     axs[1, 0].grid()
 
     #axs[1, 1].set_title("Histogram (just a test)")
@@ -251,17 +206,63 @@ def main():
     # Plot bonus shraps
     axs[0, 1].set_title("Bonus shrap multis")
     axs[0, 1].plot(data['timestamps'], data['bonus_shraps_multis'])
+    if data2:
+        axs[0, 1].plot(data2['timestamps'], data2['bonus_shraps_multis'])
     axs[0, 1].set_ylabel("Multiplier")
     axs[0, 1].set_xlabel("Time (s)")
     axs[0, 1].grid()
 
     axs[1, 1].set_title("Bonus shrap sorted")
-    axs[1, 1].set_xlabel("Kills")
     axs[1, 1].set_ylabel("Multiplier")
-    axs[1, 1].plot(np.sort(data['bonus_shraps_multis']))
+    axs[1, 1].plot(np.linspace(0, 1, num=len(data['bonus_shraps_multis'])), np.sort(data['bonus_shraps_multis']))
+    if data2:
+        axs[1, 1].plot(np.linspace(0, 1, num=len(data2['bonus_shraps_multis'])), np.sort(data2['bonus_shraps_multis']))
+        axs[1, 1].set_xlabel(f"Kills normilzed (total {len(data['loots'])}, {len(data2['loots'])})")
+    else:
+        axs[1, 1].set_xlabel(f"Kills normilzed (total {len(data['loots'])})")
+
     axs[1, 1].grid()
 
     plt.show()
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Analyze individual loot events from log and aggregate data')
+    parser.add_argument('--files', '-f', default=None, type=argparse.FileType('r'),
+                        help='chat.log', required=True, nargs='+')
+    parser.add_argument('--cost', '-c', default=None, type=float,
+                        help='Cost per shot (PEC)', required=True)
+    parser.add_argument('--files-compare', '-f2', default=None, type=argparse.FileType('r'),
+                        help='chat.log', nargs='+')
+    parser.add_argument('--cost-compare', '-c2', default=None, type=float,
+                        help='Cost per shot (PEC)')
+    parser.add_argument('--remove-shrap', '-s', action='store_true',
+                        help='Remove bonus shrapnel from returns')
+    parser.add_argument('--write-csv', '-csv', action='store_true',
+                        help='Write parsed output as a csv (will be written to loot.csv)')
+
+    args = parser.parse_args()
+
+    data = get_data(args.files, args.cost, args.remove_shrap)
+
+    if args.write_csv:
+        with open('loot.csv', 'w', newline='') as csvfile:
+            fieldnames = ['timestamp', 'cost', 'return', 'multi']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for i in range(len(data['loots'])):
+                writer.writerow({'timestamp': data['timestamps'][i], 'cost': data['costs']
+                                 [i], 'return': data['loots'][i], 'multi': data['returns'][i]})
+
+    print_summary(data)
+
+    data2 = None
+    if args.files_compare:
+        data2 = get_data(args.files_compare, args.cost_compare, args.remove_shrap)
+        print_summary(data2)
+
+
+    plot_data(data, data2)
 
 if __name__ == "__main__":
     main()
