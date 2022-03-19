@@ -119,8 +119,8 @@ def parse_log(file_name, data):
 def main():
     parser = argparse.ArgumentParser(
         description='Analyze individual loot events from log and aggregate data')
-    parser.add_argument('--file', '-f', default=None, type=argparse.FileType('r'),
-                        help='chat.log', required=True)
+    parser.add_argument('--files', '-f', default=None, type=argparse.FileType('r'),
+                        help='chat.log', required=True, nargs='+')
     parser.add_argument('--cost', '-c', default=None, type=float,
                         help='Cost per shot (PEC)', required=True)
     parser.add_argument('--remove-shrap', '-s', action='store_true',
@@ -141,7 +141,8 @@ def main():
     data['timestamps'] = []
     data['shots'] = 0
 
-    parse_log(args.file.name, data)
+    for f in args.files:
+        parse_log(f.name, data)
 
     for i in range(len(data['loots'])):
         if args.remove_shrap:
@@ -251,7 +252,7 @@ def main():
     axs[0, 1].set_title("Bonus shrap multis")
     axs[0, 1].plot(data['timestamps'], data['bonus_shraps_multis'])
     axs[0, 1].set_ylabel("Multiplier")
-    axs[0, 0].set_xlabel("Time (s)")
+    axs[0, 1].set_xlabel("Time (s)")
     axs[0, 1].grid()
 
     axs[1, 1].set_title("Bonus shrap sorted")
