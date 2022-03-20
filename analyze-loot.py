@@ -154,11 +154,13 @@ def print_summary(data):
         all_cost += data['costs'][i]
         all_loot += data['loots'][i]
 
+    loots_with_bonus = len([i for i in data['bonus_shraps'] if i > 0])
+
     print(f"\nNum kills: {len(data['loots'])}")
     print(f"Shots: {data['shots']}")
     print(f"Total loot {(all_loot/all_cost) * 100:.2f}% ({all_loot:.2f}/{all_cost:.2f})")
-    print(f"Total bonus shrap {np.sum(data['bonus_shraps']):.2f} ({np.sum(data['bonus_shraps'])/all_cost * 100:.2f}%)")
-
+    print(f"Total bonus shrap {np.sum(data['bonus_shraps']):.2f} PED ({np.sum(data['bonus_shraps'])/all_cost * 100:.2f}% of cost)")
+    print(f"Loots with bonus: {(loots_with_bonus/len(data['loots'])*100):.2f}% of all loots")
     # Analyze bottom
     remove_bottom_n = 2
     bottom_procent = 2
@@ -172,6 +174,19 @@ def print_summary(data):
     print(f"Average (5): {np.sum(sorted_returns[remove_bottom_n:5+remove_bottom_n] / 5)}")
 
 def plot_data(data, data2):
+    # Efficiency factor can be used to scale the returns according to the
+    # theory that 0-100 eff translates to 0-7% TT return
+    # Set the to value below to the eff of the setup, setting them to 100% (1.0)
+    # is the same as igoring it since the factor will be 1.
+    # The factor is applied as a dividend to invert the data.
+    data1_eff = 1
+    data2_eff = 1
+
+    data1eff_factor = 0.94 + 0.07 * data1_eff
+    data2eff_factor = 0.94 + 0.07 * data2_eff
+
+    # TODO: Add similar to looter
+
     # Plot some things
     fig, axs = plt.subplots(2, 2)
     fig.suptitle(f"TODO")
@@ -190,9 +205,9 @@ def plot_data(data, data2):
     axs[1, 0].set_title("Returns sorted")
     axs[1, 0].set_xlabel("Kills")
     axs[1, 0].set_ylabel("Loot (multiplier)")
-    axs[1, 0].plot(np.linspace(0, 1, num=len(data['returns'])), np.sort(data['returns']))
+    axs[1, 0].plot(np.linspace(0, 1, num=len(data['returns'])), np.sort(data['returns']) / data1eff_factor)
     if data2:
-        axs[1, 0].plot(np.linspace(0, 1, num=len(data2['returns'])), np.sort(data2['returns']))
+        axs[1, 0].plot(np.linspace(0, 1, num=len(data2['returns'])), np.sort(data2['returns']) / data2eff_factor)
         axs[1, 0].set_xlabel(f"Kills normilzed (total {len(data['loots'])}, {len(data2['loots'])})")
     else:
         axs[1, 0].set_xlabel(f"Kills normilzed (total {len(data['loots'])})")
@@ -214,9 +229,9 @@ def plot_data(data, data2):
 
     axs[1, 1].set_title("Bonus shrap sorted")
     axs[1, 1].set_ylabel("Multiplier")
-    axs[1, 1].plot(np.linspace(0, 1, num=len(data['bonus_shraps_multis'])), np.sort(data['bonus_shraps_multis']))
+    axs[1, 1].plot(np.linspace(0, 1, num=len(data['bonus_shraps_multis'])), np.sort(data['bonus_shraps_multis']) / data1eff_factor)
     if data2:
-        axs[1, 1].plot(np.linspace(0, 1, num=len(data2['bonus_shraps_multis'])), np.sort(data2['bonus_shraps_multis']))
+        axs[1, 1].plot(np.linspace(0, 1, num=len(data2['bonus_shraps_multis'])), np.sort(data2['bonus_shraps_multis']) / data2eff_factor)
         axs[1, 1].set_xlabel(f"Kills normilzed (total {len(data['loots'])}, {len(data2['loots'])})")
     else:
         axs[1, 1].set_xlabel(f"Kills normilzed (total {len(data['loots'])})")
