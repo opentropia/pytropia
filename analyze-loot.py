@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 from os import times
+import os
 import re
 import time
 import datetime
 import csv
 import math
+from importlib_metadata import metadata
 
 import numpy as np
-from matplotlib import pyplot as plt 
+from matplotlib import pyplot as plt
+import matplotlib.dates as mdates
 
 from logregex import *
 
@@ -23,6 +27,8 @@ def parse_log(file_name, data):
     shots_current = 0
     num_shrap = 0
     bonus_shrap = 0
+    first_shrap = 0
+    second_shrap = 0
 
     with open(file_name, "r", encoding="utf8") as log:
         regex = re_base
@@ -31,7 +37,8 @@ def parse_log(file_name, data):
         current_loot = 0.00000001
         for line in log.readlines():
             result = re.match(regex, line)
-            timestamp = time.mktime(datetime.datetime.strptime(result.group(1), "%Y-%m-%d %H:%M:%S").timetuple())
+            #timestamp = time.mktime(datetime.datetime.strptime(result.group(1), "%Y-%m-%d %H:%M:%S").timetuple())
+            timestamp = datetime.datetime.strptime(result.group(1), "%Y-%m-%d %H:%M:%S")
 
             channel = result.group(2)
             user = result.group(3)
@@ -71,6 +78,19 @@ def parse_log(file_name, data):
                 if last_message == 'loot':
                     ret = (current_loot/current_cost)
 
+                    # Resolve shrapnel
+                    if num_shrap >= 2:
+                        # The theory is that the bonus loot is always the second shrapnel pile in loots with two shrapnel piles
+                        bonus_shrap = second_shrap
+
+                        # Code below is a test to use the first shrapnel pile if it's closer to the expected "multi"
+                        #second_shrap_multi = second_shrap / current_cost
+                        #first_shrap_multi = first_shrap / current_cost
+                        #if (second_shrap_multi < 0.4 or second_shrap_multi > 0.8) and (first_shrap_multi > 0.4 and first_shrap_multi < 0.8):
+                        #    bonus_shrap = first_shrap
+                        #else:
+                        #    bonus_shrap = second_shrap
+
                     # Ignore spurious data
                     if ret < 100000 and num_shrap <= 2:
                         data['loots'].append(current_loot)
@@ -107,8 +127,10 @@ def parse_log(file_name, data):
                 if item == "Shrapnel":
                     value = count / 10000
 
+                    if num_shrap == 0:
+                        first_shrap = value
                     if num_shrap == 1:
-                        bonus_shrap = value
+                        second_shrap = value
 
                     num_shrap += 1
 
@@ -120,6 +142,31 @@ def parse_log(file_name, data):
 def get_data(files, cost_per_shot, remove_shrap):
     data = {}
 
+    # Check if a meta-data file exists.
+    # If multiple files are provided the meta data from the first will be used for all.
+    # TODO: handle meta data for each file
+    meta_data = {}
+    path, filename = os.path.split(files[0].name)
+    meta_data_fname = os.path.join(path, "meta-data.json")
+    if os.path.exists(meta_data_fname):
+        with open(meta_data_fname, "r") as meta_data_file:
+            meta_data = json.load(meta_data_file)
+    else:
+        meta_data['looter'] = 100
+        meta_data['efficiency'] = 100
+        meta_data['mob'] = "unknown"
+        meta_data['weapon'] = "unknown"
+        meta_data['attachments'] = "unknown"
+        meta_data['pec-per-use'] = 0
+        meta_data['comment'] = ""
+
+    if meta_data['pec-per-use'] > 0:
+        cost_per_shot = meta_data['pec-per-use']
+
+    if cost_per_shot == 0:
+        print("cost_per_shot must be provided, either through meta-data or as an argument!")
+        exit(1)
+
     data['ped_per_shot'] = cost_per_shot / 100
     data['bonus_shraps'] = []
     data['bonus_shraps_multis'] = []
@@ -128,6 +175,7 @@ def get_data(files, cost_per_shot, remove_shrap):
     data['returns'] = []
     data['timestamps'] = []
     data['shots'] = 0
+    data['meta-data'] = meta_data
 
     for f in files:
         parse_log(f.name, data)
@@ -137,13 +185,18 @@ def get_data(files, cost_per_shot, remove_shrap):
             data['loots'][i] -= data['bonus_shraps'][i]
 
         multi = data['loots'][i] / data['costs'][i]
+
+        # Only look at lowest multis
+        #if multi > 0.31:
+        #    multi = 0
+
         data['returns'].append(multi)
 
         data['bonus_shraps_multis'].append(data['bonus_shraps'][i] / data['costs'][i])
 
     # Subtract min timestamp for relative time from first loot
-    min_timesamp = min(data['timestamps'])
-    data['timestamps'] = [x - min_timesamp for x in data['timestamps']]
+    # min_timesamp = min(data['timestamps'])
+    # data['timestamps'] = [x - min_timesamp for x in data['timestamps']]
 
     return data
 
@@ -179,11 +232,13 @@ def plot_data(data, data2):
     # Set the to value below to the eff of the setup, setting them to 100% (1.0)
     # is the same as igoring it since the factor will be 1.
     # The factor is applied as a dividend to invert the data.
-    data1_eff = 1
-    data2_eff = 1
+    data1_eff = 1 #0.836
+    data1_looter = 1 #0.5349
+    data2_eff = 1 #0.593
+    data2_looter = 1 #0.3140
 
-    data1eff_factor = 0.94 + 0.07 * data1_eff
-    data2eff_factor = 0.94 + 0.07 * data2_eff
+    data1eff_factor = 0.86 + 0.07 * data1_eff + 0.07 * data1_looter
+    data2eff_factor = 0.86 + 0.07 * data2_eff + 0.07 * data2_looter
 
     # TODO: Add similar to looter
 
@@ -191,8 +246,10 @@ def plot_data(data, data2):
     fig, axs = plt.subplots(2, 2)
     fig.suptitle(f"TODO")
 
+    axs[0, 0].xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+    axs[0, 0].tick_params('x', labelrotation=10)
     axs[0, 0].set_title("Returns over time")
-    axs[0, 0].set_xlabel("Time (s)")
+    #axs[0, 0].set_xlabel("Time (s)")
     axs[0, 0].set_ylabel("Loot (multiplier)")
     axs[0, 0].set_ylim([0, 80])
     axs[0, 0].plot(data['timestamps'], data['returns'])
@@ -218,14 +275,18 @@ def plot_data(data, data2):
     #axs[1, 1].grid()
 
 
+
+    axs[0, 1].xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+    axs[0, 1].tick_params('x', labelrotation=10)
     # Plot bonus shraps
     axs[0, 1].set_title("Bonus shrap multis")
     axs[0, 1].plot(data['timestamps'], data['bonus_shraps_multis'])
     if data2:
         axs[0, 1].plot(data2['timestamps'], data2['bonus_shraps_multis'])
     axs[0, 1].set_ylabel("Multiplier")
-    axs[0, 1].set_xlabel("Time (s)")
+    #axs[0, 1].set_xlabel("Time (s)")
     axs[0, 1].grid()
+
 
     axs[1, 1].set_title("Bonus shrap sorted")
     axs[1, 1].set_ylabel("Multiplier")
@@ -245,11 +306,11 @@ def main():
         description='Analyze individual loot events from log and aggregate data')
     parser.add_argument('--files', '-f', default=None, type=argparse.FileType('r'),
                         help='chat.log', required=True, nargs='+')
-    parser.add_argument('--cost', '-c', default=None, type=float,
-                        help='Cost per shot (PEC)', required=True)
+    parser.add_argument('--cost', '-c', default=0, type=float,
+                        help='Cost per shot (PEC)')
     parser.add_argument('--files-compare', '-f2', default=None, type=argparse.FileType('r'),
                         help='chat.log', nargs='+')
-    parser.add_argument('--cost-compare', '-c2', default=None, type=float,
+    parser.add_argument('--cost-compare', '-c2', default=0, type=float,
                         help='Cost per shot (PEC)')
     parser.add_argument('--remove-shrap', '-s', action='store_true',
                         help='Remove bonus shrapnel from returns')
