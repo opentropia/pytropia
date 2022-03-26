@@ -301,6 +301,144 @@ def plot_data(data, data2):
 
     plt.show()
 
+def extract_simple_group(data, prev_end_index, step):
+    sorted_ret = np.sort(data['returns'])
+    diff_multis = np.diff(sorted_ret)
+
+    start_index_guess = prev_end_index + int(len(diff_multis) * step)
+
+    diff_max = 4 * np.amax(diff_multis[start_index_guess:start_index_guess+int(len(diff_multis) * (step/4))])
+    print(f"group max {diff_max}")
+
+    start_index = 0
+    # search for start
+    for i in range(start_index_guess, 0, -1):
+        if diff_multis[i] > diff_max:
+            start_index = i+1
+            break
+    # end index
+    end_index = len(diff_multis)
+    for i in range(start_index_guess, len(diff_multis)):
+        if diff_multis[i] > diff_max:
+            end_index = i+1
+            break
+
+    print(f"Group x: {start_index} -> {end_index}")
+    group = sorted_ret[start_index:end_index]
+    data["groups"].append(group)
+
+    return end_index
+
+def extract_groups(data):
+    data["groups"] = []
+
+    sorted_ret = np.sort(data['returns'])
+    diff_multis = np.diff(sorted_ret)
+
+    # Group 1
+    group1_middle_guess = 0.05
+    middle_index_guess = int(len(diff_multis) * group1_middle_guess)
+
+    group1_diff_max = 3 * np.amax(diff_multis[middle_index_guess:middle_index_guess+int(len(diff_multis) * 0.015)])
+    print(f"group1 max {group1_diff_max}")
+
+    start_index = 1
+    end_index = len(diff_multis)
+    # search for start
+    for i in range(middle_index_guess, 0, -1):
+        if diff_multis[i] > group1_diff_max:
+            start_index = i+1
+            break
+    for i in range(middle_index_guess, len(diff_multis)):
+        if diff_multis[i] > group1_diff_max:
+            end_index = i
+            break
+
+    print(f"Group 1: {start_index} -> {end_index}")
+    group = sorted_ret[start_index:end_index]
+    data["groups"].append(group)
+
+    # Group 2
+    # This group is actually three groups but they are difficult to resolve robustly
+    # Start 5% from group 1 and search backwards
+    start_index_guess = end_index + int(len(diff_multis) * 0.05)
+    start_index = 0
+    group_diff_max = group1_diff_max
+    # search for start
+    for i in range(start_index_guess, 0, -1):
+        if diff_multis[i] > group_diff_max:
+            start_index = i+1
+            break
+    # end index
+    start_index_guess = int(len(diff_multis) * 0.6)
+    end_index = len(diff_multis)
+    for i in range(start_index_guess, len(diff_multis)):
+        if diff_multis[i] > group_diff_max:
+            end_index = i+1
+            break
+
+    print(f"Group 2: {start_index} -> {end_index}")
+    group = sorted_ret[start_index:end_index]
+    data["groups"].append(group)
+
+    end_index = extract_simple_group(data, end_index, step=0.05)
+    end_index = extract_simple_group(data, end_index, step=0.03)
+    end_index = extract_simple_group(data, end_index, step=0.01)
+    end_index = extract_simple_group(data, end_index, step=0.005)
+
+def plot_multi_groups(data, data2):
+    sorted_ret = np.sort(data['returns'])
+    diff_multis = np.diff(sorted_ret)
+    xvec = np.linspace(0, 1, num=len(data['returns']))
+
+    fig, axs = plt.subplots(2, 1)
+    fig.suptitle(f"TODO")
+    axs[0].set_xlabel("Kills")
+    axs[0].set_ylabel("Loot (multiplier)")
+    axs[0].plot(xvec, sorted_ret)
+    axs[0].grid()
+
+    axs[1].set_xlabel("Kills")
+    axs[1].set_ylabel("Loot (multiplier)")
+    axs[1].plot(xvec[:-1], diff_multis)
+    axs[1].grid()
+
+    if data2:
+        sorted_ret2 = np.sort(data2['returns'])
+        diff_multis2 = np.diff(sorted_ret2)
+        xvec2 = np.linspace(0, 1, num=len(data2['returns']))
+        axs[0].plot(xvec2, sorted_ret2)
+        axs[1].plot(xvec2[:-1], diff_multis2)
+
+    plt.draw()
+
+    # Plot some things
+    fig, axs = plt.subplots(3, 2)
+    fig.suptitle(f"TODO")
+
+    extract_groups(data)
+
+    if data2:
+        extract_groups(data2)
+
+    def plot_group(ax, data, data2, group):
+        ax.set_xlabel("Kills")
+        ax.set_ylabel("Loot (multiplier)")
+        ax.plot(np.linspace(0, 1, num=len(data["groups"][group])), data["groups"][group])
+        ax.set_xlabel(f"G1, Kills {len(data['groups'][group])}, {len(data['groups'][group]) / len(data['loots']) * 100:.2f}% of total")
+        if data2:
+            ax.plot(np.linspace(0, 1, num=len(data2["groups"][group])), data2["groups"][group])
+        ax.grid()
+
+    plot_group(axs[0, 0], data, data2, 0)
+    plot_group(axs[0, 1], data, data2, 1)
+    plot_group(axs[1, 0], data, data2, 2)
+    plot_group(axs[1, 1], data, data2, 3)
+    plot_group(axs[2, 0], data, data2, 4)
+    plot_group(axs[2, 1], data, data2, 5)
+
+    plt.show()
+
 def main():
     parser = argparse.ArgumentParser(
         description='Analyze individual loot events from log and aggregate data')
@@ -316,6 +454,10 @@ def main():
                         help='Remove bonus shrapnel from returns')
     parser.add_argument('--write-csv', '-csv', action='store_true',
                         help='Write parsed output as a csv (will be written to loot.csv)')
+    parser.add_argument('--plot-data', '-p', action='store_true',
+                        help='Plot overview')
+    parser.add_argument('--plot-groups', '-pg', action='store_true',
+                        help='Plot grouping data')
 
     args = parser.parse_args()
 
@@ -337,8 +479,10 @@ def main():
         data2 = get_data(args.files_compare, args.cost_compare, args.remove_shrap)
         print_summary(data2)
 
-
-    plot_data(data, data2)
+    if args.plot_data:
+        plot_data(data, data2)
+    if args.plot_groups:
+        plot_multi_groups(data, data2)
 
 if __name__ == "__main__":
     main()
