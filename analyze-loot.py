@@ -22,7 +22,18 @@ from logregex import *
 # Stones: Kaldon
 # Universal Ammo
 
-def parse_log(file_name, data):
+def invert_loot(loot, eff, looter):
+    # Efficiency factor can be used to scale the returns according to the
+    # theory that 0-100 eff translates to 0-7% TT return
+    # Set the to value below to the eff of the setup, setting them to 100% (1.0)
+    # is the same as igoring it since the factor will be 1.
+    # The factor is applied as a dividend to invert the data.
+    factor = 0.86 + 0.07 * (eff/100) + 0.07 * (looter/100)
+    #factor = 0.94 + 0.07 * (eff/100)
+    #print(factor)
+    return loot / factor
+
+def parse_log(file_name, data, normalize_loot):
     last_message = 'cost'
     shots_current = 0
     num_shrap = 0
@@ -122,10 +133,14 @@ def parse_log(file_name, data):
                 count = int(result.group(2))
                 value = float(result.group(3))
 
+                if normalize_loot:
+                    value = invert_loot(value, data['meta-data']['efficiency'], data['meta-data']['looter'])
+
                 # Special handling to calculate value of Shrapnel since
                 # to avoid rounding errors.
                 if item == "Shrapnel":
                     value = count / 10000
+                    value = invert_loot(value, data['meta-data']['efficiency'], data['meta-data']['looter'])
 
                     if num_shrap == 0:
                         first_shrap = value
@@ -139,7 +154,7 @@ def parse_log(file_name, data):
                     current_loot += value
 
 
-def get_data(files, cost_per_shot, remove_shrap):
+def get_data(files, cost_per_shot, remove_shrap, normalize_loot):
     data = {}
 
     # Check if a meta-data file exists.
@@ -178,7 +193,7 @@ def get_data(files, cost_per_shot, remove_shrap):
     data['meta-data'] = meta_data
 
     for f in files:
-        parse_log(f.name, data)
+        parse_log(f.name, data, normalize_loot)
 
     for i in range(len(data['loots'])):
         if remove_shrap:
@@ -227,21 +242,6 @@ def print_summary(data):
     print(f"Average (5): {np.sum(sorted_returns[remove_bottom_n:5+remove_bottom_n] / 5)}")
 
 def plot_data(data, data2):
-    # Efficiency factor can be used to scale the returns according to the
-    # theory that 0-100 eff translates to 0-7% TT return
-    # Set the to value below to the eff of the setup, setting them to 100% (1.0)
-    # is the same as igoring it since the factor will be 1.
-    # The factor is applied as a dividend to invert the data.
-    data1_eff = 1 #0.836
-    data1_looter = 1 #0.5349
-    data2_eff = 1 #0.593
-    data2_looter = 1 #0.3140
-
-    data1eff_factor = 0.86 + 0.07 * data1_eff + 0.07 * data1_looter
-    data2eff_factor = 0.86 + 0.07 * data2_eff + 0.07 * data2_looter
-
-    # TODO: Add similar to looter
-
     # Plot some things
     fig, axs = plt.subplots(2, 2)
     fig.suptitle(f"TODO")
@@ -262,9 +262,9 @@ def plot_data(data, data2):
     axs[1, 0].set_title("Returns sorted")
     axs[1, 0].set_xlabel("Kills")
     axs[1, 0].set_ylabel("Loot (multiplier)")
-    axs[1, 0].plot(np.linspace(0, 1, num=len(data['returns'])), np.sort(data['returns']) / data1eff_factor)
+    axs[1, 0].plot(np.linspace(0, 1, num=len(data['returns'])), np.sort(data['returns']))
     if data2:
-        axs[1, 0].plot(np.linspace(0, 1, num=len(data2['returns'])), np.sort(data2['returns']) / data2eff_factor)
+        axs[1, 0].plot(np.linspace(0, 1, num=len(data2['returns'])), np.sort(data2['returns']))
         axs[1, 0].set_xlabel(f"Kills normilzed (total {len(data['loots'])}, {len(data2['loots'])})")
     else:
         axs[1, 0].set_xlabel(f"Kills normilzed (total {len(data['loots'])})")
@@ -290,9 +290,9 @@ def plot_data(data, data2):
 
     axs[1, 1].set_title("Bonus shrap sorted")
     axs[1, 1].set_ylabel("Multiplier")
-    axs[1, 1].plot(np.linspace(0, 1, num=len(data['bonus_shraps_multis'])), np.sort(data['bonus_shraps_multis']) / data1eff_factor)
+    axs[1, 1].plot(np.linspace(0, 1, num=len(data['bonus_shraps_multis'])), np.sort(data['bonus_shraps_multis']))
     if data2:
-        axs[1, 1].plot(np.linspace(0, 1, num=len(data2['bonus_shraps_multis'])), np.sort(data2['bonus_shraps_multis']) / data2eff_factor)
+        axs[1, 1].plot(np.linspace(0, 1, num=len(data2['bonus_shraps_multis'])), np.sort(data2['bonus_shraps_multis']))
         axs[1, 1].set_xlabel(f"Kills normilzed (total {len(data['loots'])}, {len(data2['loots'])})")
     else:
         axs[1, 1].set_xlabel(f"Kills normilzed (total {len(data['loots'])})")
@@ -339,7 +339,7 @@ def extract_groups(data):
     group1_middle_guess = 0.05
     middle_index_guess = int(len(diff_multis) * group1_middle_guess)
 
-    group1_diff_max = 3 * np.amax(diff_multis[middle_index_guess:middle_index_guess+int(len(diff_multis) * 0.015)])
+    group1_diff_max = 4 * np.amax(diff_multis[middle_index_guess:middle_index_guess+int(len(diff_multis) * 0.015)])
     print(f"group1 max {group1_diff_max}")
 
     start_index = 1
@@ -392,7 +392,7 @@ def plot_multi_groups(data, data2):
     xvec = np.linspace(0, 1, num=len(data['returns']))
 
     fig, axs = plt.subplots(2, 1)
-    fig.suptitle(f"TODO")
+
     axs[0].set_xlabel("Kills")
     axs[0].set_ylabel("Loot (multiplier)")
     axs[0].plot(xvec, sorted_ret)
@@ -414,7 +414,14 @@ def plot_multi_groups(data, data2):
 
     # Plot some things
     fig, axs = plt.subplots(3, 2)
-    fig.suptitle(f"TODO")
+
+    if data2:
+        fig.suptitle(f"Blue: {data['meta-data']['weapon']}/{data['meta-data']['mob']}" +
+                     f" ({data['meta-data']['efficiency']}%/{data['meta-data']['looter']})" +
+                     f" vs Orange: {data2['meta-data']['weapon']}/{data2['meta-data']['mob']}" + 
+                     f" ({data2['meta-data']['efficiency']}%/{data2['meta-data']['looter']})")
+    else:
+        fig.suptitle(f"")
 
     extract_groups(data)
 
@@ -458,10 +465,12 @@ def main():
                         help='Plot overview')
     parser.add_argument('--plot-groups', '-pg', action='store_true',
                         help='Plot grouping data')
+    parser.add_argument('--normalize', '-n', action='store_true',
+                        help='Normalize all data to 100 eff, 100 looter')
 
     args = parser.parse_args()
 
-    data = get_data(args.files, args.cost, args.remove_shrap)
+    data = get_data(args.files, args.cost, args.remove_shrap, args.normalize)
 
     if args.write_csv:
         with open('loot.csv', 'w', newline='') as csvfile:
@@ -476,7 +485,7 @@ def main():
 
     data2 = None
     if args.files_compare:
-        data2 = get_data(args.files_compare, args.cost_compare, args.remove_shrap)
+        data2 = get_data(args.files_compare, args.cost_compare, args.remove_shrap, args.normalize)
         print_summary(data2)
 
     if args.plot_data:
