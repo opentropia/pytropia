@@ -139,7 +139,8 @@ def parse_log(file_name, data, normalize_loot):
                 # to avoid rounding errors.
                 if item == "Shrapnel":
                     value = count / 10000
-                    value = invert_loot(value, data['meta-data']['efficiency'], data['meta-data']['looter'])
+                    if normalize_loot:
+                        value = invert_loot(value, data['meta-data']['efficiency'], data['meta-data']['looter'])
 
                     if num_shrap == 0:
                         first_shrap = value
