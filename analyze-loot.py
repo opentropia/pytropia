@@ -9,7 +9,6 @@ import time
 import datetime
 import csv
 import math
-from importlib_metadata import metadata
 
 import numpy as np
 from matplotlib import pyplot as plt

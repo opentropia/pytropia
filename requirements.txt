@@ -7,3 +7,5 @@ opencv-python
 screeninfo
 imutils
 tabulate
+scipy
+matplotlib
